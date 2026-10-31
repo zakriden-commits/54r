@@ -8,25 +8,28 @@
     "start": "node server/server.js",
     "dev": "node server/server.js",
     "assets": "node tools/generate-assets.js",
-    "test": "node tools/smoke-test.mjs && node tools/render-test.mjs && node tools/boot-test.mjs",
+    "test": "node tools/check-workflows.mjs && node tools/smoke-test.mjs && node tools/render-test.mjs && node tools/boot-test.mjs",
     "test:logic": "node tools/smoke-test.mjs",
     "test:render": "node tools/render-test.mjs",
     "test:boot": "node tools/boot-test.mjs",
     "android:add": "cap add android",
     "android:sync": "cap sync android",
     "android:apk": "npm run assets && cap sync android && cd android && ./gradlew assembleRelease assembleDebug",
-    "postinstall": "node tools/fetch-three.js || exit 0"
+    "postinstall": "node tools/fetch-three.js || exit 0",
+    "lint:workflows": "node tools/check-workflows.mjs"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
     "@capacitor/core": "^8.6.0",
+    "js-yaml": "^5.5.0",
     "ws": "^8.22.1"
   },
   "devDependencies": {
     "@capacitor/android": "^8.6.0",
     "@capacitor/cli": "^8.6.0",
-    "three": "^0.187.0"
+    "three": "^0.187.0",
+    "js-yaml": "^4.1.0"
   }
 }

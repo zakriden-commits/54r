@@ -89,7 +89,7 @@ jobs:
             fi
           done
 
-      - name: Артефакт: APK
+      - name: "Артефакт: APK"
         uses: actions/upload-artifact@v4
         with:
           name: DeniIslam-APK

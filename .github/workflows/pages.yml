@@ -53,7 +53,7 @@ jobs:
       - run: npm ci
       - name: Ассеты
         run: npm run assets
-      - name: Pages: без серверных каталогов в публикуемом сайте
+      - name: "Pages: только клиент в публикуемом сайте"
         run: |
           # server/ (Node+ws) на Pages не нужен, но room.js должен остаться:
           # он лежит в public/server/room.js и используется офлайн-режимом.
