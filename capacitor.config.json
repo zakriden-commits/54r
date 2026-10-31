@@ -1,0 +1,16 @@
+{
+  "appId": "com.zakriden.deniislam",
+  "appName": "Deni Islam",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#14161a"
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  }
+}

@@ -1,0 +1,20 @@
+# зависимости
+node_modules/
+npm-debug.log*
+
+# локальные сохранения игроков (сервер пишет сюда)
+data/
+
+# android-проект генерируется в CI командой `cap add android`
+android/
+ios/
+.gradle/
+*.apk.idsig
+
+# служебное
+.DS_Store
+Thumbs.db
+*.log
+.env
+.idea/
+.vscode/

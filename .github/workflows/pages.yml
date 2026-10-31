@@ -1,0 +1,69 @@
+name: Публикация игры на GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Проверки
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Ассеты (текстуры, звук, радио, иконки)
+        run: npm run assets
+      - name: Тесты
+        run: npm test
+      - name: Проверка, что офлайн-режим доступен со статики
+        run: |
+          test -f public/server/room.js || { echo "нет public/server/room.js — офлайн-режим на Pages сломается"; exit 1; }
+          test -f public/shared/protocol.js
+          test -f public/manifest.webmanifest
+          test -f public/sw.js
+          echo "OK: статический набор для Pages на месте"
+
+  deploy:
+    name: Деплой на Pages
+    needs: test
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Ассеты
+        run: npm run assets
+      - name: Pages: без серверных каталогов в публикуемом сайте
+        run: |
+          # server/ (Node+ws) на Pages не нужен, но room.js должен остаться:
+          # он лежит в public/server/room.js и используется офлайн-режимом.
+          test -f public/server/room.js
+      - name: Конфигурация Pages
+        uses: actions/configure-pages@v5
+      - name: Загрузка сайта
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - name: Публикация
+        id: deployment
+        uses: actions/deploy-pages@v4

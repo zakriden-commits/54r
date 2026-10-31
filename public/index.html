@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Deni Islam">
+<meta name="theme-color" content="#14161a">
+<meta name="description" content="Deni Islam — суровая мультяшная 3D онлайн-игра на двоих: дом, банк, оружейный магазин, копы и звёзды розыска.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="shared/protocol.js"></script>
+</head>
+<body>
+<div id="app">
+  <canvas id="scene"></canvas>
+
+  <!-- ==================== HUD ==================== -->
+  <div id="hud" class="hidden">
+    <!-- верх слева: HP / стамина / деньги -->
+    <div id="hudLeft">
+      <div class="bar hp"><i id="hpFill"></i><span id="hpText">100</span></div>
+      <div class="bar st"><i id="stFill"></i><span id="stText">100</span></div>
+      <div class="walletRow">
+        <div class="wallet" id="wallet">$0</div>
+        <div class="bagmoney hidden" id="bagMoney">👜 $0</div>
+      </div>
+      <div id="carryTag" class="hidden">📦 Несу ящик</div>
+    </div>
+
+    <!-- верх справа: звёзды, напарник, микрофон, пинг -->
+    <div id="hudRight">
+      <div id="stars" class="stars">
+        <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+      </div>
+      <div id="partnerBox" class="partner">
+        <div class="ptName" id="ptName">Напарник: ожидание…</div>
+        <div class="bar hp small"><i id="ptHp"></i></div>
+      </div>
+      <div id="netBox" class="netbox">
+        <span id="micIcon" class="mic off">🎙</span>
+        <span id="pingVal">— ms</span>
+        <span id="fpsVal">— fps</span>
+      </div>
+    </div>
+
+    <!-- центр -->
+    <div id="crosshair" class="hidden"><i></i><b></b><u></u><s></s></div>
+    <div id="hitmark">✕</div>
+    <div id="dmgVignette"></div>
+    <div id="interactPrompt" class="hidden"><kbd>E</kbd><span id="interactText"></span></div>
+    <div id="grabWrap" class="hidden">
+      <svg viewBox="0 0 120 120" id="grabRing"><circle cx="60" cy="60" r="52" class="bg"/><circle cx="60" cy="60" r="52" class="fg"/></svg>
+      <div id="grabText">Гребём деньги…</div>
+    </div>
+    <div id="reloadWrap" class="hidden"><div id="reloadBar"><i></i></div><div id="reloadText">Перезарядка</div></div>
+    <div id="speech" class="hidden"></div>
+    <div id="ammoBox" class="hidden"><b id="ammoMag">0</b><span id="ammoRes">/0</span><em id="ammoName"></em></div>
+    <div id="zoneTag"></div>
+    <div id="compass"></div>
+  </div>
+
+  <!-- хотбар -->
+  <div id="hotbar" class="hidden"></div>
+
+  <!-- мобильные контролы -->
+  <div id="touchLeft" class="hidden"><div id="stickBase"><div id="stickKnob"></div></div></div>
+  <div id="touchRight" class="hidden">
+    <button class="tbtn fire" id="btnFire">🔫<span>ОГОНЬ</span></button>
+    <button class="tbtn" id="btnReload">🔄<span>ЗАРЯД</span></button>
+    <button class="tbtn" id="btnRun">🏃<span>БЕГ</span></button>
+    <button class="tbtn" id="btnInteract">✋<span id="btnInteractText">ВЗЯТЬ</span></button>
+    <button class="tbtn" id="btnBag">👜<span>СУМКА</span></button>
+    <button class="tbtn" id="btnInv">🎒<span>ИНВ.</span></button>
+    <button class="tbtn" id="btnJump">⤴<span>ПРЫГ</span></button>
+  </div>
+
+  <!-- ==================== ПАНЕЛИ ==================== -->
+  <div id="panels">
+    <!-- магазин -->
+    <div class="panel hidden" id="shopPanel">
+      <div class="pHead"><h2>МАГАЗИН ОРУЖИЯ «СТВОЛ»</h2><div class="pSub">Продавец Ашот: «Бери, не жалей!»</div><button class="close" data-close="shopPanel">✕</button></div>
+      <div class="pBody">
+        <div class="walletLine">Ваш баланс: <b id="shopWallet">$0</b></div>
+        <div id="shopGrid" class="shopGrid"></div>
+        <h3 class="secTitle">ПАТРОНЫ (дёшево)</h3>
+        <div id="ammoGrid" class="ammoGrid"></div>
+      </div>
+    </div>
+
+    <!-- инвентарь -->
+    <div class="panel hidden" id="invPanel">
+      <div class="pHead"><h2>ИНВЕНТАРЬ</h2><div class="pSub">Выберите ячейку — предмет окажется в руках</div><button class="close" data-close="invPanel">✕</button></div>
+      <div class="pBody">
+        <div id="invGrid" class="invGrid"></div>
+        <div id="invInfo" class="invInfo"></div>
+        <div class="rowBtns">
+          <button class="btn small" id="invUse">Использовать / Перечислить</button>
+          <button class="btn small ghost" id="invDrop">Выбросить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- шкаф -->
+    <div class="panel hidden" id="wardPanel">
+      <div class="pHead"><h2 id="wardTitle">ШКАФ</h2><div class="pSub">Дома всё сохраняется: до 15 предметов в каждом шкафу</div><button class="close" data-close="wardPanel">✕</button></div>
+      <div class="pBody wardBody">
+        <div class="wardCol"><h3>Инвентарь</h3><div id="wardInv" class="invGrid small"></div></div>
+        <div class="wardCol"><h3>В шкафу</h3><div id="wardStore" class="invGrid small"></div></div>
+      </div>
+    </div>
+
+    <!-- сумка -->
+    <div class="panel hidden" id="bagPanel">
+      <div class="pHead"><h2>СУМКА С ДЕНЬГАМИ</h2><button class="close" data-close="bagPanel">✕</button></div>
+      <div class="pBody">
+        <div class="bagTotal">В сумке: <b id="bagTotal">$0</b></div>
+        <div class="bagRow">
+          <input type="number" id="bagAmount" min="1" placeholder="Сумма">
+          <button class="btn small" id="bagTake">Вывести</button>
+          <button class="btn small ghost" id="bagAll">Вывести всё</button>
+        </div>
+        <div class="pSub">Баланс: <b id="bagWallet">$0</b></div>
+      </div>
+    </div>
+
+    <!-- об игре / управление -->
+    <div class="panel hidden" id="aboutPanel">
+      <div class="pHead"><h2>ОБ ИГРЕ И УПРАВЛЕНИЕ</h2><button class="close" data-close="aboutPanel">✕</button></div>
+      <div class="pBody about">
+        <h3>Что за игра</h3>
+        <p><b>Deni Islam</b> — суровая мультяшная 3D-игра строго на двоих. Один сервер = два человека: вы и ваш друг.
+        Вы вдвоём просыпаетесь в одном доме на двух кроватях. Один — джентльмен в котелке и с тростью, второй — гопник в кепке и спортивном костюме.</p>
+        <p>Суть: заработать денег. Честно — таская ящики в грузовик за наличные. Нечестно — ограбив большой банк «DENI ISLAM BANK».
+        Рядом с банком оружейный магазин: там стволы, патроны (дешёвые), аптечки и сумка для денег.</p>
+        <p>Покажете оружие в банке — кассирша в панике жмёт тревогу, охрана бежит с дубинками, приезжает полиция.
+        Чем больше жертв, тем выше звёзды розыска (до 5★). Скрылись с места преступления, забежали домой и закрыли дверь — звёзды потихоньку гаснут, вас забывают.</p>
+        <p>Друг друга убить нельзя: урон по напарнику не проходит. Голосовой чат работает всю игру, если вы разрешили микрофон.</p>
+
+        <h3>Управление — ПК (клавиатура + мышь)</h3>
+        <ul class="keys">
+          <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — ходить</li>
+          <li><kbd>Shift</kbd> — бег (тратит стамину)</li>
+          <li><kbd>Пробел</kbd> — прыжок</li>
+          <li><kbd>Мышь</kbd> — смотреть, <kbd>ЛКМ</kbd> — стрелять / бить</li>
+          <li><kbd>ПКМ</kbd> — прицелиться</li>
+          <li><kbd>R</kbd> — перезарядка</li>
+          <li><kbd>E</kbd> — взаимодействие (дверь, шкаф, кровать, деньги, грузовик, прилавок)</li>
+          <li><kbd>Удержать E</kbd> на деньгах — грести (15 сек руками, 30 сек с сумкой)</li>
+          <li><kbd>1</kbd>…<kbd>0</kbd> — ячейки инвентаря, <kbd>Tab</kbd>/<kbd>I</kbd> — инвентарь</li>
+          <li><kbd>Q</kbd> — сумка с деньгами, <kbd>F</kbd> — перечислить пачку в баланс</li>
+          <li><kbd>V</kbd> — выключить микрофон, <kbd>M</kbd> — звук, <kbd>Esc</kbd> — меню</li>
+          <li><kbd>T</kbd> — быстрый текст напарнику</li>
+        </ul>
+
+        <h3>Управление — телефон (iPhone / Android)</h3>
+        <ul class="keys">
+          <li><b>Левая половина экрана</b> — джойстик ходьбы (палец)</li>
+          <li><b>Правая половина</b> — осмотр: ведите пальцем, чтобы повернуться</li>
+          <li><b>🔫 ОГОНЬ</b> — стрелять / бить (есть автоприцел по ближайшей цели)</li>
+          <li><b>🔄 ЗАРЯД</b> — перезарядка. Если патронов нет — игра напишет «купите патроны»</li>
+          <li><b>🏃 БЕГ</b> — удерживайте для спринта (стамина)</li>
+          <li><b>✋ ВЗЯТЬ</b> — взаимодействие; удерживайте на деньгах, чтобы грести</li>
+          <li><b>🎒 ИНВ.</b> — инвентарь, <b>👜 СУМКА</b> — посмотреть и вывести деньги из сумки</li>
+          <li>Нижняя полоса ячеек — выбор предмета в руки (кулак, ствол, деньги, сумка)</li>
+        </ul>
+
+        <h3>Правила экономики</h3>
+        <ul class="plain">
+          <li>Голыми руками можно унести <b>5 пачек</b>, каждая гребётся <b>15 секунд</b>. Пачку потом нужно <b>перечислить в баланс</b> из инвентаря — сумма зачисляется случайно (может много, может мало).</li>
+          <li>С <b>сумкой</b> ($380) вы гребёте <b>30 секунд</b>, но забираете всю кучу. В сумке деньги хранятся отдельно, вывести можно сколько хотите или всё сразу.</li>
+          <li>Патроны продаются поштучно и дёшево: 3–7$ за штуку в зависимости от калибра.</li>
+          <li>Если вас убили — <b>весь инвентарь пропадает</b>. Баланс и содержимое шкафов дома сохраняются.</li>
+          <li>Шкафов дома два, по 15 ячеек каждый. Всё, что положили, переживёт даже выход из игры.</li>
+        </ul>
+
+        <h3>Как играть вдвоём</h3>
+        <ul class="plain">
+          <li>Оба заходите по одной и той же ссылке (или в одно и то же приложение) и жмёте «ИГРАТЬ».</li>
+          <li>Сервер один, мест ровно два. Второй игрок появляется в комнате автоматически и спавнится на второй кровати.</li>
+          <li>При входе игра каждый раз спрашивает разрешение на микрофон — разрешите, чтобы слышать друга.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- настройки -->
+    <div class="panel hidden" id="settingsPanel">
+      <div class="pHead"><h2>НАСТРОЙКИ</h2><button class="close" data-close="settingsPanel">✕</button></div>
+      <div class="pBody">
+        <label class="fld"><span>Адрес игрового сервера</span><input id="setServer" type="text" placeholder="например wss://deni-islam.onrender.com"></label>
+        <div class="pSub">Оставьте пустым, чтобы играть на сервере этого же сайта. Для игры вдвоём оба должны указать один адрес.</div>
+        <label class="fld"><span>Чувствительность камеры</span><input id="setSens" type="range" min="20" max="300" value="100"></label>
+        <label class="fld"><span>Качество графики</span>
+          <select id="setQuality"><option value="low">Низкое (быстро)</option><option value="med" selected>Среднее</option><option value="high">Высокое</option></select>
+        </label>
+        <label class="fld"><span>Автоприцел на телефоне</span><input id="setAim" type="checkbox" checked></label>
+        <label class="fld"><span>Радио в городе</span><input id="setRadio" type="checkbox" checked></label>
+        <div class="rowBtns">
+          <button class="btn small ghost" id="btnRadioNext">⟳ СЛЕДУЮЩАЯ СТАНЦИЯ</button>
+        </div>
+        <div class="pSub" id="radioName">Станции: «Радио Район», «Кассета Санька», «Ночной патруль».</div>
+        <div class="rowBtns">
+          <button class="btn small" id="setSave">Сохранить</button>
+          <button class="btn small ghost" id="setReset">Сбросить прогресс</button>
+        </div>
+        <div class="pSub" id="saveInfo"></div>
+      </div>
+    </div>
+
+    <!-- меню паузы -->
+    <div class="panel hidden" id="pausePanel">
+      <div class="pHead"><h2>ПАУЗА</h2></div>
+      <div class="pBody center">
+        <button class="btn big" id="pResume">ПРОДОЛЖИТЬ</button>
+        <button class="btn" id="pAbout">ОБ ИГРЕ / УПРАВЛЕНИЕ</button>
+        <button class="btn" id="pSettings">НАСТРОЙКИ</button>
+        <button class="btn" id="pInv">ИНВЕНТАРЬ</button>
+        <button class="btn ghost" id="pExit">ВЫЙТИ В МЕНЮ</button>
+        <div class="pSub" id="pauseStats"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== МЕНЮ ==================== -->
+  <div id="menu">
+    <div class="menuBg"></div>
+    <div class="menuInner">
+      <div class="logo">
+        <div class="logoTop">DENI</div>
+        <div class="logoMain">ISLAM</div>
+        <div class="logoSub">суровая мультяшная онлайн-игра на двоих</div>
+      </div>
+
+      <div id="menuMain" class="menuBlock">
+        <button class="btnMenu play" id="btnPlay">ИГРАТЬ</button>
+        <button class="btnMenu" id="btnAbout">ОБ ИГРЕ · УПРАВЛЕНИЕ</button>
+        <button class="btnMenu" id="btnSettings">НАСТРОЙКИ</button>
+        <div class="menuFoot">
+          <span id="serverStatus">проверка сервера…</span>
+          <span class="ver">v1.0 · 2 игрока на сервер</span>
+        </div>
+      </div>
+
+      <div id="menuProfile" class="menuBlock hidden">
+        <div class="card">
+          <label class="fld"><span>Ваше имя в игре</span><input id="inpName" type="text" maxlength="18" placeholder="Игрок"></label>
+          <div class="fld"><span>Кем играете</span>
+            <div class="modelPick">
+              <button class="mpick active" id="pickGent"><canvas id="cvGent" width="150" height="190"></canvas><b>ДЖЕНТЛЬМЕН</b><i>котелок, трость, монокль</i></button>
+              <button class="mpick" id="pickGop"><canvas id="cvGop" width="150" height="190"></canvas><b>ГОПНИК</b><i>кепка, костюм с полосками, семки</i></button>
+            </div>
+          </div>
+          <div class="fld"><span>Голосовой чат</span>
+            <div class="rowBtns">
+              <button class="btn small" id="btnMicAsk">🎙 РАЗРЕШИТЬ МИКРОФОН</button>
+            </div>
+            <div class="pSub" id="micStatus">Игра каждый раз спрашивает разрешение. Без микрофона вы будете слышать напарника, но он вас — нет.</div>
+          </div>
+          <div class="rowBtns">
+            <button class="btn big" id="btnConnect">ПОДКЛЮЧИТЬСЯ К СЕРВЕРУ</button>
+            <button class="btn ghost" id="btnBackProfile">НАЗАД</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="menuLobby" class="menuBlock hidden">
+        <div class="card lobby">
+          <h2 id="lobbyTitle">ПОДКЛЮЧЕНИЕ…</h2>
+          <div class="slots">
+            <div class="slot" id="slot0"><b>СЛОТ 1</b><span>—</span></div>
+            <div class="slot" id="slot1"><b>СЛОТ 2</b><span>—</span></div>
+          </div>
+          <div class="pSub" id="lobbyText">Сервер один, мест два. Ждём второго игрока — как только друг зайдёт, он появится на второй кровати.</div>
+          <div class="rowBtns">
+            <button class="btn big" id="btnEnter">ВОЙТИ В ДОМ</button>
+            <button class="btn ghost" id="btnLeave">ОТКЛЮЧИТЬСЯ</button>
+          </div>
+          <div class="pSub" id="lobbySave"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- экран смерти -->
+  <div id="deathScreen" class="hidden">
+    <div class="deathInner">
+      <h1>ВАС УБИЛИ</h1>
+      <p id="deathBy"></p>
+      <p class="warn">Весь инвентарь потерян. Баланс и шкафы дома сохранены.</p>
+      <div class="respawn">Возрождение на кровати через <b id="respawnT">5</b></div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+  <div id="loading" class="hidden"><div class="spin"></div><div id="loadText">Загрузка города…</div></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

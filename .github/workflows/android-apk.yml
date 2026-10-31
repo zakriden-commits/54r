@@ -1,0 +1,99 @@
+name: Сборка APK (Android)
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: Deni Islam APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Кэш Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Генерация ассетов (текстуры 3072/2048, звук, три радиостанции)
+        run: npm run assets
+
+      - name: Тесты (логика комнаты + рендер мира + загрузка клиента)
+        run: npm test
+
+      - name: Android-проект
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Патч build.gradle (подпись debug-ключом, .so без сжатия, без минификации)
+        run: |
+          python3 tools/patch-android-gradle.py android/app/build.gradle android/app/build.gradle.kts
+
+      - name: Сборка APK (release + debug)
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleRelease assembleDebug
+
+      - name: Переименовываем и проверяем размер (нужно не меньше 30 МБ)
+        run: |
+          mkdir -p dist
+          find android -name "*.apk" -print0 | while IFS= read -r -d '' f; do
+            base=$(basename "$f")
+            case "$base" in
+              *release*) out="dist/DeniIslam-release.apk" ;;
+              *debug*)   out="dist/DeniIslam-debug.apk" ;;
+              *)         out="dist/$base" ;;
+            esac
+            cp -f "$f" "$out"
+          done
+          ls -lh dist/
+          for f in dist/*.apk; do
+            bytes=$(stat -c %s "$f")
+            mb=$((bytes / 1048576))
+            echo "$f = ${mb} МБ"
+            if [ "$mb" -lt 30 ]; then
+              echo "::warning::$f меньше 30 МБ (${mb} МБ)"
+            fi
+          done
+
+      - name: Артефакт: APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DeniIslam-APK
+          path: dist/*.apk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90
