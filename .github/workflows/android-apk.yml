@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # read — для сборки, write — чтобы шаг «Публичный релиз» мог залить APK
+  contents: write
 
 jobs:
   apk:
@@ -97,3 +98,32 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 90
+
+      - name: "Публичный релиз: apk-latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          rel=$(stat -c %s dist/DeniIslam-release.apk)
+          dbg=$(stat -c %s dist/DeniIslam-debug.apk)
+          mb=$((rel / 1048576))
+          cat > /tmp/notes.md <<'NOTES'
+          Свежая сборка Deni Islam для Android.
+
+          **Как поставить:** скачайте `DeniIslam-release.apk`, откройте файл на
+          телефоне и разрешите «Установку из неизвестных источников». Подпись —
+          стандартный debug-ключ Gradle, поэтому установка поверх прошлой версии
+          сохраняет профиль игрока.
+
+          Онлайн на двоих работает через любой запущенный сервер (`npm start`):
+          в «Настройки» → «Адрес сервера» впишите его URL. Если поле пустое и
+          сервера нет рядом — игра предложит офлайн-режим с напарником-ботом.
+          NOTES
+          sed -i 's/^          //' /tmp/notes.md
+          gh release delete apk-latest --yes --cleanup-tag || true
+          gh release create apk-latest \
+            --title "Deni Islam — APK (${mb} МБ)" \
+            --notes-file /tmp/notes.md \
+            --latest \
+            dist/DeniIslam-release.apk dist/DeniIslam-debug.apk
+          echo "Ссылка на релиз: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/apk-latest"
